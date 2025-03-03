@@ -1,0 +1,36 @@
+name: TruffleHog Secret Scan
+
+on:
+  pull_request:
+    branches:
+      - main  # Change this to your default branch
+
+jobs:
+  trufflehog_scan:
+    name: Scan for Secrets
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # Ensures we get previous commit for diff
+
+      - name: Get Changed Files
+        id: changed-files
+        run: |
+          echo "CHANGED_FILES=$(git diff --name-only HEAD^ HEAD | tr '\n' ' ')" >> $GITHUB_ENV
+
+      - name: Install TruffleHog
+        run: pip install trufflehog
+
+      - name: Scan Changed Files for Secrets
+        run: |
+          EXIT_CODE=0
+          for file in $CHANGED_FILES; do
+            if [[ -f "$file" ]]; then
+              echo "Scanning $file..."
+              trufflehog filesystem --json --entropy=True --only-verified . --include "$file" || EXIT_CODE=$?
+            fi
+          done
+          exit $EXIT_CODE
