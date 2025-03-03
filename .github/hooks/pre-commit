@@ -1,0 +1,21 @@
+#!/bin/bash
+echo "Running TruffleHog pre-commit scan..."
+
+# Scan only staged files for secrets
+FILES=$(git diff --cached --name-only --diff-filter=ACM)
+EXIT_CODE=0
+
+for file in $FILES; do
+    if [[ -f "$file" ]]; then
+        echo "Scanning $file..."
+        trufflehog filesystem --json --entropy=True --only-verified . --include "$file" || EXIT_CODE=$?
+    fi
+done
+
+if [ $EXIT_CODE -ne 0 ]; then
+    echo "❌ Secret detected! Commit rejected."
+    exit 1
+fi
+
+echo "✅ No secrets found. Commit allowed."
+exit 0
