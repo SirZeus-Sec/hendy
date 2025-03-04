@@ -3,12 +3,16 @@ name: TruffleHog Secret Scan on PR
 on:
   pull_request:
     branches:
-      - main  # Change this to your default branch
+      - main  # Change this if needed
 
 jobs:
   trufflehog_scan:
-    name: Scan PR for Secrets
     runs-on: ubuntu-latest
+    name: trufflehog-test 🔎 🔒
+    if: |
+      always() &&
+      github.event_name == 'pull_request' &&
+      inputs.DISABLE_TRUFFLEHOG == false  # Allows disabling via workflow inputs
 
     steps:
       - name: Checkout Repository
@@ -22,7 +26,11 @@ jobs:
       - name: Get Changed Files in PR
         id: changed-files
         run: |
-          echo "CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }} | tr '\n' ' ')" >> $GITHUB_ENV
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.sha }}"
+          echo "BASE_SHA=$BASE_SHA"
+          echo "HEAD_SHA=$HEAD_SHA"
+          echo "CHANGED_FILES=$(git diff --name-only $BASE_SHA $HEAD_SHA | tr '\n' ' ')" >> $GITHUB_ENV
 
       - name: Run TruffleHog on PR Changed Files
         run: |
