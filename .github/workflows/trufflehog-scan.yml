@@ -5,16 +5,20 @@ on:
     branches:
       - main  # Change this if needed
 
+permissions:  # ✅ Fix for PR commenting error
+  pull-requests: write  
+  contents: read
+
 jobs:
   trufflehog_scan:
-    name: Scan PR for Secrets
+    name: TruffleHog Secret Scan 🔎 🔒
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2  # Ensures we get the previous commit for accurate diffs
+          fetch-depth: 0  # ✅ Fix for "bad object" error (ensures full commit history is fetched)
 
       - name: Install TruffleHog
         run: pip install trufflehog==2.1.0  # Use TruffleHog v2 for better regex-based detection
@@ -53,7 +57,7 @@ jobs:
           exit $EXIT_CODE  # Exit with 1 if secrets are found
 
       - name: Upload Scan Results as Artifact
-        uses: actions/upload-artifact@v4  # ✅ Updated from v3 to v4
+        uses: actions/upload-artifact@v4  # ✅ Fixed version
         with:
           name: TruffleHog-Scan-Results
           path: scan_results.txt
