@@ -3,7 +3,7 @@ name: TruffleHog Secret Scan on PR
 on:
   pull_request:
     branches:
-      - main  # Change this to your default branch if needed
+      - main  # Change this if needed
 
 jobs:
   trufflehog_scan:
@@ -17,7 +17,7 @@ jobs:
           fetch-depth: 2  # Ensures we get the previous commit for accurate diffs
 
       - name: Install TruffleHog
-        run: pip install trufflehog
+        run: pip install trufflehog==2.1.0  # Install TruffleHog v2 (better regex support)
 
       - name: Get Changed Files
         id: changed-files
@@ -31,13 +31,11 @@ jobs:
           for file in $CHANGED_FILES; do
             if [[ -f "$file" ]]; then
               echo "Scanning $file..."
-              RESULT=$(trufflehog filesystem --json --no-verification --include-detectors=all "$file" 2>&1)
+              RESULT=$(trufflehog --regex --entropy=True "$file" 2>&1)
               echo "$RESULT"
               
               # If secrets are found, set EXIT_CODE to 1
-              if echo "$RESULT" | grep -q '"verified_secrets":[1-9]'; then
-                  EXIT_CODE=1
-              elif echo "$RESULT" | grep -q '"unverified_secrets":[1-9]'; then
+              if echo "$RESULT" | grep -q 'Reason:'; then
                   EXIT_CODE=1
               fi
             fi
