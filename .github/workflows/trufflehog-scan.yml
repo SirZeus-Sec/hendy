@@ -3,7 +3,7 @@ name: TruffleHog Secret Scan on PR
 on:
   pull_request:
     branches:
-      - main  # Change this if needed
+      - main  # Change this to your default branch
 
 jobs:
   trufflehog_scan:
@@ -14,18 +14,17 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2  # Ensures we get the previous commit for accurate diffs
+          fetch-depth: 2  # Ensures we get the previous commit for accurate PR diff
 
       - name: Install TruffleHog
-        run: pip install trufflehog==2.1.0  # Install TruffleHog v2 (better regex support)
+        run: pip install trufflehog==2.1.0  # Use TruffleHog v2 for better regex support
 
-      - name: Get Changed Files
+      - name: Get Changed Files in PR
         id: changed-files
         run: |
-          git fetch origin ${{ github.event.repository.default_branch }}
-          echo "CHANGED_FILES=$(git diff --name-only origin/${{ github.event.repository.default_branch }} HEAD | tr '\n' ' ')" >> $GITHUB_ENV
+          echo "CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }} | tr '\n' ' ')" >> $GITHUB_ENV
 
-      - name: Run TruffleHog on Changed Files
+      - name: Run TruffleHog on PR Changed Files
         run: |
           EXIT_CODE=0
           for file in $CHANGED_FILES; do
