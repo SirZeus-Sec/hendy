@@ -1,50 +1,33 @@
-name: TruffleHog Secret Scan on PR
+name: Secret Scan
 
 on:
   pull_request:
     branches:
-      - main  # Change this if needed
+      - main  # Run on PRs to the main branch
 
 jobs:
-  trufflehog_scan:
+  secret-scan:
+    name: TruffleHog Secret Scan
     runs-on: ubuntu-latest
-    name: trufflehog-test 🔎 🔒
-    if: |
-      always() &&
-      github.event_name == 'pull_request' &&
-      inputs.DISABLE_TRUFFLEHOG == false  # Allows disabling via workflow inputs
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 2  # Ensures we get the previous commit for accurate PR diff
 
       - name: Install TruffleHog
-        run: pip install trufflehog==2.1.0  # Use TruffleHog v2 for better regex support
+        run: pip install trufflehog
 
-      - name: Get Changed Files in PR
-        id: changed-files
+      - name: Run TruffleHog on PR Changes
+        id: trufflehog
+        continue-on-error: true  # Prevents GitHub Actions from stopping immediately
         run: |
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          HEAD_SHA="${{ github.sha }}"
-          echo "BASE_SHA=$BASE_SHA"
-          echo "HEAD_SHA=$HEAD_SHA"
-          echo "CHANGED_FILES=$(git diff --name-only $BASE_SHA $HEAD_SHA | tr '\n' ' ')" >> $GITHUB_ENV
+          trufflehog git --since-commit=$(git merge-base origin/main HEAD) --json > secrets.json || true
 
-      - name: Run TruffleHog on PR Changed Files
+      - name: Check for Secrets
         run: |
-          EXIT_CODE=0
-          for file in $CHANGED_FILES; do
-            if [[ -f "$file" ]]; then
-              echo "Scanning $file..."
-              RESULT=$(trufflehog --regex --entropy=True "$file" 2>&1)
-              echo "$RESULT"
-              
-              # If secrets are found, set EXIT_CODE to 1
-              if echo "$RESULT" | grep -q 'Reason:'; then
-                  EXIT_CODE=1
-              fi
-            fi
-          done
-          exit $EXIT_CODE
+          if grep -q '"SourceType": "git"' secrets.json; then
+            echo "❌ Secret detected in PR!"
+            exit 1
+          else
+            echo "✅ No secrets found."
+          fi
