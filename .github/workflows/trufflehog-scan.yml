@@ -26,7 +26,7 @@ jobs:
       - name: Get Changed Files in PR
         id: changed-files
         run: |
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          BASE_SHA=$(git merge-base origin/main HEAD)
           HEAD_SHA="${{ github.sha }}"
           echo "BASE_SHA=$BASE_SHA"
           echo "HEAD_SHA=$HEAD_SHA"
@@ -64,6 +64,7 @@ jobs:
           retention-days: 5
 
       - name: Comment on PR with Scan Results
+        if: always()
         uses: mshick/add-pr-comment@v2
         with:
           message: |
