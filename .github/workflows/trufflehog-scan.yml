@@ -1,36 +1,37 @@
-name: TruffleHog Secret Scan
+name: Secret Scan
 
 on:
   pull_request:
     branches:
-      - main  # Change this to your default branch
+      - main
 
 jobs:
-  trufflehog_scan:
-    name: Scan for Secrets
+  secret-scan:
+    name: TruffleHog Secret Scan
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout Code with Full History
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2  # Ensures we get previous commit for diff
-
-      - name: Get Changed Files
-        id: changed-files
-        run: |
-          echo "CHANGED_FILES=$(git diff --name-only HEAD^ HEAD | tr '\n' ' ')" >> $GITHUB_ENV
+          fetch-depth: 0  # Fetch full history to compare changes
 
       - name: Install TruffleHog
         run: pip install trufflehog
 
-      - name: Scan Changed Files for Secrets
+      - name: Run TruffleHog on PR Changes
+        id: trufflehog
+        continue-on-error: true  # Prevents GitHub Actions from stopping immediately
         run: |
-          EXIT_CODE=0
-          for file in $CHANGED_FILES; do
-            if [[ -f "$file" ]]; then
-              echo "Scanning $file..."
-              trufflehog filesystem --json --entropy=True --only-verified . --include "$file" || EXIT_CODE=$?
-            fi
-          done
-          exit $EXIT_CODE
+          BASE_COMMIT=$(git merge-base origin/main HEAD)
+          echo "Base commit for comparison: $BASE_COMMIT"
+          trufflehog git --since-commit=$BASE_COMMIT --json > secrets.json || true
+
+      - name: Check for Secrets
+        run: |
+          if grep -q '"SourceType": "git"' secrets.json; then
+            echo "❌ Secret detected in PR!"
+            exit 1
+          else
+            echo "✅ No secrets found."
+          fi
